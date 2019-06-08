@@ -1,18 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using AspNet.Security.OpenIdConnect.Primitives;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Identity.UI;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.HttpsPolicy;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Sincer.Identity.Data;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using OpenIddict.Abstractions;
+using Sincer.Identity.Data;
+using System;
 
 namespace Sincer.Identity
 {
@@ -36,11 +34,43 @@ namespace Sincer.Identity
             });
 
             services.AddDbContext<ApplicationDbContext>(options =>
-                options.UseSqlServer(
-                    Configuration.GetConnectionString("DefaultConnection")));
+            {
+                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+                options.UseOpenIddict<Guid>();
+            });
+
             services.AddDefaultIdentity<IdentityUser>()
                 .AddDefaultUI(UIFramework.Bootstrap4)
-                .AddEntityFrameworkStores<ApplicationDbContext>();
+                .AddEntityFrameworkStores<ApplicationDbContext>()
+                .AddDefaultTokenProviders();
+
+            services.Configure<IdentityOptions>(options =>
+            {
+                options.ClaimsIdentity.UserNameClaimType = OpenIdConnectConstants.Claims.Name;
+                options.ClaimsIdentity.UserIdClaimType = OpenIdConnectConstants.Claims.Subject;
+                options.ClaimsIdentity.RoleClaimType = OpenIdConnectConstants.Claims.Role;
+            });
+
+
+            services.AddOpenIddict()
+                .AddCore(options =>
+                {
+                    options.UseEntityFrameworkCore()
+                           .UseDbContext<ApplicationDbContext>()
+                           .ReplaceDefaultEntities<Guid>();
+                })
+                .AddServer(options =>
+                {
+                    options.UseMvc();
+                    options.EnableTokenEndpoint("/connect/token");
+                    options.AllowPasswordFlow();
+                    options.RegisterScopes(OpenIdConnectConstants.Scopes.Email,
+                                           OpenIdConnectConstants.Scopes.Profile,
+                                           OpenIddictConstants.Scopes.Roles);
+                    options.AcceptAnonymousClients();
+                    options.UseJsonWebTokens();
+                    options.AddEphemeralSigningKey();
+                });
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
         }
