@@ -90,7 +90,7 @@ namespace Sincer.Identity.Controllers
                 OpenIddictConstants.Scopes.Roles
             }.Intersect(request.GetScopes()));
 
-            ticket.SetResources("resource-server");
+            ticket.SetResources("sincer");
 
             ticket.SetAccessTokenLifetime(TimeSpan.FromHours(24));
 
